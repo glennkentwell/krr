@@ -96,7 +96,6 @@ class PrometheusMetric(BaseMetric):
             labels += f'{key}="{value}"'
 
         return labels
-        # return f', {settings.prometheus_label}="{settings.prometheus_cluster_label}"'
 
     @abc.abstractmethod
     def get_query(self, object: K8sObjectData, duration: str, step: str) -> str:

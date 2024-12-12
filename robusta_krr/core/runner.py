@@ -195,7 +195,7 @@ class Runner:
                     "Loaded pods from Kubernetes API instead."
                 )
 
-        print('loaded pods', object.pods)
+        logger.debug(f'loaded pods {object.pods}')
         metrics = await prometheus_loader.gather_data(
             object,
             self._strategy,

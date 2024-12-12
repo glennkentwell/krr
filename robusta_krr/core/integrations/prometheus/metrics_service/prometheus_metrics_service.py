@@ -116,6 +116,7 @@ class PrometheusMetricsService(MetricsService):
 
     async def query(self, query: str) -> dict:
         loop = asyncio.get_running_loop()
+        logger.debug(f"query(): {query}")
         return await loop.run_in_executor(
             self.executor,
             lambda: self.prometheus.safe_custom_query(query=query)["result"],
@@ -123,6 +124,7 @@ class PrometheusMetricsService(MetricsService):
 
     async def query_range(self, query: str, start: datetime, end: datetime, step: timedelta) -> dict:
         loop = asyncio.get_running_loop()
+        logger.debug(f"query_range(): {query} {start} {end} {step}")
         return await loop.run_in_executor(
             self.executor,
             lambda: self.prometheus.safe_custom_query_range(
@@ -245,10 +247,10 @@ class PrometheusMetricsService(MetricsService):
             sum(max(kube_pod_container_resource_requests{{ namespace="monitoring", resource="cpu" {cluster_label} }})  by (job, pod, container) )
         """
 
-        print(f"memory_query: {memory_query}")
-        print(f"cpu_query: {cpu_query}")
-        print(f"kube_system_requests_mem: {kube_system_requests_mem}")
-        print(f"kube_system_requests_cpu: {kube_system_requests_cpu}")
+        logger.debug(f"memory_query: {memory_query}")
+        logger.debug(f"cpu_query: {cpu_query}")
+        logger.debug(f"kube_system_requests_mem: {kube_system_requests_mem}")
+        logger.debug(f"kube_system_requests_cpu: {kube_system_requests_cpu}")
 
         try:
             cluster_memory_result = await self.query_and_validate(memory_query)
@@ -353,9 +355,9 @@ class PrometheusMetricsService(MetricsService):
             )
             related_pods_result.extend(related_pods_result_item)
 
-        print('related_pods_result', related_pods_result)
-        print('pod_owners', pod_owners)
-        print('pod_owner_kind', pod_owner_kind)
+        logger.debug(f'related_pods_result {related_pods_result}')
+        logger.debug(f'pod_owners {pod_owners}')
+        logger.debug(f'pod_owner_kind {pod_owner_kind}')
         if related_pods_result == []:
             return []
 
@@ -365,16 +367,18 @@ class PrometheusMetricsService(MetricsService):
 
         for pod_group in batched(related_pods, 100):
             group_regex = "|".join(pod_group)
-            pods_status_result = await self.query(
-                f"""
+
+            q = f"""
                     kube_pod_status_phase{{
                         phase="Running",
-                        pod=~"{group_regex}",
+                        exported_pod=~"{group_regex}",
                         exported_namespace="{object.namespace}"
                         {cluster_label}
                     }} == 1
                 """
-            )
+            pods_status_result = await self.query(q)
+            print(f'pods_status_result query: {q}')
+            print(f'pods_status_result: {pods_status_result}')
             current_pods_set |= {pod["metric"]["exported_pod"] for pod in pods_status_result}
             del pods_status_result
 
