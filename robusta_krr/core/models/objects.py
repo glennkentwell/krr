@@ -62,7 +62,6 @@ class K8sObjectData(pd.BaseModel):
 
     @property
     def current_pods_count(self) -> int:
-        print(f'current_pods_count(): {self.pods}')
         return len([pod for pod in self.pods if not pod.deleted])
 
     @property

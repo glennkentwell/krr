@@ -377,8 +377,6 @@ class PrometheusMetricsService(MetricsService):
                     }} == 1
                 """
             pods_status_result = await self.query(q)
-            print(f'pods_status_result query: {q}')
-            print(f'pods_status_result: {pods_status_result}')
             current_pods_set |= {pod["metric"]["exported_pod"] for pod in pods_status_result}
             del pods_status_result
 
