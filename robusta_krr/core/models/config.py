@@ -38,8 +38,8 @@ class Config(pd.BaseSettings):
     prometheus_auth_header: Optional[pd.SecretStr] = pd.Field(None)
     prometheus_other_headers: dict[str, pd.SecretStr] = pd.Field(default_factory=dict)
     prometheus_ssl_enabled: bool = pd.Field(False)
-    prometheus_cluster_label: Optional[str] = pd.Field(None)
-    prometheus_label: Optional[str] = pd.Field(None)
+    prometheus_cluster_label: Union[list[str], Literal["*"], None] = None
+    prometheus_label: Union[list[str], Literal["*"], None] = None
     eks_managed_prom: bool = pd.Field(False)
     eks_managed_prom_profile_name: Optional[str] = pd.Field(None)
     eks_access_key: Optional[str] = pd.Field(None)

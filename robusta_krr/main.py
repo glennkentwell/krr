@@ -134,14 +134,14 @@ def load_commands() -> None:
                     help="Enable SSL for Prometheus requests.",
                     rich_help_panel="Prometheus Settings",
                 ),
-                prometheus_cluster_label: Optional[str] = typer.Option(
+                prometheus_cluster_label: Optional[List[str]] = typer.Option(
                     None,
                     "--prometheus-cluster-label",
                     "-l",
                     help="The label in prometheus for your cluster.(Only relevant for centralized prometheus)",
                     rich_help_panel="Prometheus Settings",
                 ),
-                prometheus_label: str = typer.Option(
+                prometheus_label: Optional[List[str]] = typer.Option(
                     None,
                     "--prometheus-label",
                     help="The label in prometheus used to differentiate clusters. (Only relevant for centralized prometheus)",
