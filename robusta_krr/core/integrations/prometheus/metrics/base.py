@@ -84,7 +84,19 @@ class PrometheusMetric(BaseMetric):
         """
         if settings.prometheus_cluster_label is None:
             return ""
-        return f', {settings.prometheus_label}="{settings.prometheus_cluster_label}"'
+
+        labels = ""
+        for i in range(len(settings.prometheus_cluster_label)):
+            key = settings.prometheus_cluster_label[i]
+            if settings.prometheus_label is not None:
+                value = settings.prometheus_label[i]
+            else:
+                value = "*"
+            labels += ","
+            labels += f'{key}="{value}"'
+
+        return labels
+        # return f', {settings.prometheus_label}="{settings.prometheus_cluster_label}"'
 
     @abc.abstractmethod
     def get_query(self, object: K8sObjectData, duration: str, step: str) -> str:

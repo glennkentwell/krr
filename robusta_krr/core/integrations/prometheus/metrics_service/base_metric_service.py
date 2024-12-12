@@ -50,13 +50,26 @@ class MetricsService(abc.ABC):
     ) -> PodsTimeData:
         ...
 
-    def get_prometheus_cluster_label(self) -> str:
+    def get_prometheus_cluster_label(self, prefix=",") -> str:
         """
         Generates the cluster label for querying a centralized Prometheus
 
         Returns:
         str: a promql safe label string for querying the cluster.
         """
-        if settings.prometheus_cluster_label is None:
-            return ""
-        return f', {settings.prometheus_label}="{settings.prometheus_cluster_label}"'
+
+        labels = ""
+        if settings.prometheus_cluster_label is not None:
+            for i in range(len(settings.prometheus_cluster_label)):
+                key = settings.prometheus_cluster_label[i]
+                if settings.prometheus_label is not None:
+                    value = settings.prometheus_label[i]
+                else:
+                    value = "*"
+
+                if i == 0:
+                    labels += prefix
+                else:
+                    labels += ','
+                labels += f'{key}="{value}"'
+        return labels

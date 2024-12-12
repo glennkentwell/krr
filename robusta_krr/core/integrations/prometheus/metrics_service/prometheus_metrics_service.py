@@ -166,11 +166,13 @@ class PrometheusMetricsService(MetricsService):
 
         now = datetime.now()
         result = await self.query_range(
-            "max(prometheus_tsdb_head_series)",
+            # "max(prometheus_tsdb_head_series)",
+            'sum(vm_rows{type="indexdb"})',
             start=now - history_duration,
             end=now,
             step=timedelta(hours=1),
         )
+        # print('get_history_range', result)
         try:
             values = result[0]["values"]
             start, end = values[0][0], values[-1][0]
@@ -228,9 +230,8 @@ class PrometheusMetricsService(MetricsService):
 
     async def get_cluster_summary(self) -> Dict[str, Any]:
         cluster_label = self.get_prometheus_cluster_label()
+        single_cluster_label = self.get_prometheus_cluster_label(prefix='')
 
-        # use this for queries with no labels. turn ', cluster="xxx"' to 'cluster="xxx"'
-        single_cluster_label = cluster_label.replace(",", "")
         memory_query = f"""
             sum(max by (instance) (machine_memory_bytes{{ {single_cluster_label} }}))
         """
@@ -238,11 +239,17 @@ class PrometheusMetricsService(MetricsService):
             sum(max by (instance) (machine_cpu_cores{{ {single_cluster_label} }}))
         """
         kube_system_requests_mem = f"""
-            sum(max(kube_pod_container_resource_requests{{ namespace='kube-system', resource='memory' {cluster_label} }})  by (job, pod, container) )
+            sum(max(kube_pod_container_resource_requests{{ namespace="monitoring", resource="memory" {cluster_label} }})  by (job, pod, container) )
         """
         kube_system_requests_cpu = f"""
-            sum(max(kube_pod_container_resource_requests{{ namespace='kube-system', resource='cpu' {cluster_label} }})  by (job, pod, container) )
+            sum(max(kube_pod_container_resource_requests{{ namespace="monitoring", resource="cpu" {cluster_label} }})  by (job, pod, container) )
         """
+
+        print(f"memory_query: {memory_query}")
+        print(f"cpu_query: {cpu_query}")
+        print(f"kube_system_requests_mem: {kube_system_requests_mem}")
+        print(f"kube_system_requests_cpu: {kube_system_requests_cpu}")
+
         try:
             cluster_memory_result = await self.query_and_validate(memory_query)
             cluster_cpu_result = await self.query_and_validate(cpu_query)
@@ -280,7 +287,7 @@ class PrometheusMetricsService(MetricsService):
                     kube_replicaset_owner{{
                         owner_name="{object.name}",
                         owner_kind="{object.kind}",
-                        namespace="{object.namespace}"
+                        exported_namespace="{object.namespace}"
                         {cluster_label}
                     }}[{period_literal}]
                 """
@@ -290,13 +297,14 @@ class PrometheusMetricsService(MetricsService):
 
             del replicasets
 
+
         elif object.kind == "DeploymentConfig":
             replication_controllers = await self.query(
                 f"""
                     kube_replicationcontroller_owner{{
                         owner_name="{object.name}",
                         owner_kind="{object.kind}",
-                        namespace="{object.namespace}"
+                        exported_namespace="{object.namespace}"
                         {cluster_label}
                     }}[{period_literal}]
                 """
@@ -314,7 +322,7 @@ class PrometheusMetricsService(MetricsService):
                     kube_job_owner{{
                         owner_name="{object.name}",
                         owner_kind="{object.kind}",
-                        namespace="{object.namespace}"
+                        exported_namespace="{object.namespace}"
                         {cluster_label}
                     }}[{period_literal}]
                 """
@@ -337,17 +345,21 @@ class PrometheusMetricsService(MetricsService):
                         kube_pod_owner{{
                             owner_name=~"{owners_regex}",
                             owner_kind="{pod_owner_kind}",
-                            namespace="{object.namespace}"
+                            exported_namespace="{object.namespace}"
                             {cluster_label}
                         }}[{period_literal}]
                     )
                 """
             )
             related_pods_result.extend(related_pods_result_item)
+
+        print('related_pods_result', related_pods_result)
+        print('pod_owners', pod_owners)
+        print('pod_owner_kind', pod_owner_kind)
         if related_pods_result == []:
             return []
 
-        related_pods = [pod["metric"]["pod"] for pod in related_pods_result]
+        related_pods = [pod["metric"]["exported_pod"] for pod in related_pods_result]
         current_pods_set = set()
         del related_pods_result
 
@@ -358,12 +370,12 @@ class PrometheusMetricsService(MetricsService):
                     kube_pod_status_phase{{
                         phase="Running",
                         pod=~"{group_regex}",
-                        namespace="{object.namespace}"
+                        exported_namespace="{object.namespace}"
                         {cluster_label}
                     }} == 1
                 """
             )
-            current_pods_set |= {pod["metric"]["pod"] for pod in pods_status_result}
+            current_pods_set |= {pod["metric"]["exported_pod"] for pod in pods_status_result}
             del pods_status_result
 
         return list({PodData(name=pod, deleted=pod not in current_pods_set) for pod in related_pods})
